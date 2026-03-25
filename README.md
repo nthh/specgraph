@@ -1,4 +1,4 @@
-# trk
+# specgraph
 
 Spec-driven traceability CLI for software projects.
 
@@ -8,7 +8,7 @@ Tracks the links between **specs**, **tickets**, **code**, and **tests**. Zero d
 
 ## Why
 
-Most project management tools track *tasks*. trk tracks the **traceability graph** — which spec section led to which ticket, which ticket links to which code, and where the gaps are.
+Most project management tools track *tasks*. specgraph tracks the **traceability graph** — which spec section led to which ticket, which ticket links to which code, and where the gaps are.
 
 ```
 Spec (what to build)
@@ -17,31 +17,31 @@ Spec (what to build)
     -> Tests (proof it works)
 ```
 
-trk answers questions like:
-- "What spec covers this code?" (`trk trace path/to/file.py`)
-- "Which specs have no implementation tickets?" (`trk gaps`)
-- "What code is orphaned — not linked from any ticket?" (`trk orphans`)
-- "How complete is this spec?" (`trk completeness my-spec`)
+specgraph answers questions like:
+- "What spec covers this code?" (`specgraph trace path/to/file.py`)
+- "Which specs have no implementation tickets?" (`specgraph gaps`)
+- "What code is orphaned — not linked from any ticket?" (`specgraph orphans`)
+- "How complete is this spec?" (`specgraph completeness my-spec`)
 
 ## Install
 
 ```bash
 # With uv (recommended):
-uv tool install trk
+uv tool install specgraph
 
 # With pipx:
-pipx install trk
+pipx install specgraph
 
 # Or just clone and run directly:
-python3 path/to/trk/src/trk/__init__.py ls
+python3 path/to/specgraph/src/specgraph/__init__.py ls
 ```
 
 ## Quick Start
 
-### 1. Add `trk.yaml` to your project root
+### 1. Add `specgraph.yaml` to your project root
 
 ```yaml
-# trk.yaml - minimal config
+# specgraph.yaml - minimal config
 tickets_dir: .tickets
 specs_dir: docs/spec
 ```
@@ -50,7 +50,7 @@ specs_dir: docs/spec
 
 ```
 your-project/
-├── trk.yaml
+├── specgraph.yaml
 ├── .tickets/
 │   ├── TEMPLATE.md          # Optional: ticket template
 │   └── impl/                # Implementation tickets
@@ -61,20 +61,20 @@ your-project/
 │       └── MY_FEATURE.md    # Specs with {#anchor} sections
 ```
 
-### 3. Run trk
+### 3. Run specgraph
 
 ```bash
-trk init    # Project overview (great for agent onboarding)
-trk ls      # List all specs with ticket counts
-trk open    # See all open tickets
+specgraph init    # Project overview (great for agent onboarding)
+specgraph ls      # List all specs with ticket counts
+specgraph open    # See all open tickets
 ```
 
 ## Configuration
 
-trk looks for `trk.yaml` by walking up from your current directory. All paths are relative to the config file.
+specgraph looks for `specgraph.yaml` by walking up from your current directory. All paths are relative to the config file.
 
 ```yaml
-# trk.yaml - full config
+# specgraph.yaml - full config
 
 # Required
 tickets_dir: .tickets          # Contains impl/ subdirectory
@@ -106,15 +106,15 @@ skip_dirs:
   - .venv
 
 # Optional: Python file with custom validators for requirement checking
-# validators_file: trk_validators.py
+# validators_file: specgraph_validators.py
 ```
 
 ## Validators (Optional)
 
-For use case requirement checking (`trk uc show`), you can provide project-specific validators. Create a Python file that exports a `VALIDATORS` dict:
+For use case requirement checking (`specgraph uc show`), you can provide project-specific validators. Create a Python file that exports a `VALIDATORS` dict:
 
 ```python
-# trk_validators.py
+# specgraph_validators.py
 from pathlib import Path
 
 def check_ops(root: Path, ref: str) -> bool:
@@ -128,9 +128,9 @@ VALIDATORS = {
 }
 ```
 
-Then reference it in `trk.yaml`:
+Then reference it in `specgraph.yaml`:
 ```yaml
-validators_file: trk_validators.py
+validators_file: specgraph_validators.py
 ```
 
 Each validator receives `(project_root: Path, requirement_string: str)` and returns `bool`.
@@ -140,7 +140,7 @@ Each validator receives `(project_root: Path, requirement_string: str)` and retu
 When an AI agent starts working on your project, it can run:
 
 ```bash
-trk init
+specgraph init
 ```
 
 This prints:
@@ -155,49 +155,49 @@ This prints:
 ### Ticket Management
 | Command | Description |
 |---------|-------------|
-| `trk ls` | List all specs with ticket counts |
-| `trk ls <spec>` | List tickets for a specific spec |
-| `trk open` | List all open tickets |
-| `trk show <spec>/<ticket>` | Show ticket details |
-| `trk close <spec>/<ticket> -c path` | Close with code link |
-| `trk new <name>` | Create a new ticket from template |
-| `trk summary` | Overall completion summary |
-| `trk dashboard` | Visual progress dashboard |
+| `specgraph ls` | List all specs with ticket counts |
+| `specgraph ls <spec>` | List tickets for a specific spec |
+| `specgraph open` | List all open tickets |
+| `specgraph show <spec>/<ticket>` | Show ticket details |
+| `specgraph close <spec>/<ticket> -c path` | Close with code link |
+| `specgraph new <name>` | Create a new ticket from template |
+| `specgraph summary` | Overall completion summary |
+| `specgraph dashboard` | Visual progress dashboard |
 
 ### Spec Management
 | Command | Description |
 |---------|-------------|
-| `trk scaffold <spec>` | Create tickets from spec sections |
-| `trk specs` | List all spec files |
-| `trk completeness <spec>` | Section-level coverage check |
-| `trk status` | Show status for all specs |
+| `specgraph scaffold <spec>` | Create tickets from spec sections |
+| `specgraph specs` | List all spec files |
+| `specgraph completeness <spec>` | Section-level coverage check |
+| `specgraph status` | Show status for all specs |
 
 ### Graph Traversal
 | Command | Description |
 |---------|-------------|
-| `trk trace <path>` | What spec/ticket covers this code? |
-| `trk graph <spec>` | Full graph: spec -> tickets -> code |
-| `trk graph -r <path>` | Reverse: what specs touch this dir? |
-| `trk related <spec>` | Specs that link to/from this spec |
+| `specgraph trace <path>` | What spec/ticket covers this code? |
+| `specgraph graph <spec>` | Full graph: spec -> tickets -> code |
+| `specgraph graph -r <path>` | Reverse: what specs touch this dir? |
+| `specgraph related <spec>` | Specs that link to/from this spec |
 
 ### Audit
 | Command | Description |
 |---------|-------------|
-| `trk audit` | Code coverage and orphan analysis |
-| `trk orphans` | List orphan code directories |
-| `trk match` | Suggest orphan -> ticket matches |
-| `trk validate` | Verify all `[[type:id]]` links resolve |
-| `trk gaps` | Specs without tickets |
+| `specgraph audit` | Code coverage and orphan analysis |
+| `specgraph orphans` | List orphan code directories |
+| `specgraph match` | Suggest orphan -> ticket matches |
+| `specgraph validate` | Verify all `[[type:id]]` links resolve |
+| `specgraph gaps` | Specs without tickets |
 
 ### Use Cases, Roadmap, CRM, Benchmarks
 | Command | Description |
 |---------|-------------|
-| `trk uc ls` | List use cases with completion % |
-| `trk roadmap` | Milestone overview |
-| `trk crm ls` | Contact list |
-| `trk bench ls` | Benchmark status |
+| `specgraph uc ls` | List use cases with completion % |
+| `specgraph roadmap` | Milestone overview |
+| `specgraph crm ls` | Contact list |
+| `specgraph bench ls` | Benchmark status |
 
-Run `trk help` for the full command reference.
+Run `specgraph help` for the full command reference.
 
 ## Spec Format
 
@@ -219,11 +219,11 @@ Users must authenticate via OAuth2...
 The following tables are required...
 ```
 
-The `{#anchor}` tags are what trk uses to create per-section tickets and track completeness.
+The `{#anchor}` tags are what specgraph uses to create per-section tickets and track completeness.
 
 ## Link Syntax
 
-trk uses `[[type:id]]` links for cross-referencing:
+specgraph uses `[[type:id]]` links for cross-referencing:
 
 - `[[spec:my-feature]]` — link to a spec
 - `[[spec:my-feature#auth]]` — link to a spec section

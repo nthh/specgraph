@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "trk"
+name = "specgraph"
 version = "0.1.0"
 description = "Spec-driven traceability CLI for software projects"
 readme = "README.md"
@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 [project.scripts]
-trk = "trk:main"
+specgraph = "specgraph:main"
 
 [project.urls]
-Repository = "https://github.com/nthh/trk"
+Repository = "https://github.com/nthh/specgraph"

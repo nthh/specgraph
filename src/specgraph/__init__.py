@@ -1,95 +1,95 @@
 #!/usr/bin/env python3
 """
-trk - Spec-driven traceability CLI for software projects.
+specgraph - Spec-driven traceability CLI for software projects.
 
 Tracks the links between specs, tickets, code, and tests.
 Zero dependencies (Python 3.10+ stdlib only).
 
-Configure per-project via trk.yaml in your project root.
+Configure per-project via specgraph.yaml in your project root.
 
 TICKET MANAGEMENT:
-    trk ls                       # List all specs with ticket counts
-    trk ls <spec>                # List tickets for a spec
-    trk ls --status=open         # Filter by status
-    trk show <spec>/<ticket>     # Show ticket details
-    trk summary                  # Overall summary
-    trk open                     # List all open tickets
-    trk close <spec>/<ticket>    # Close a ticket as implemented
-    trk close <t> -c path/code   # Close with code link
-    trk close <t> -t path/test   # Close with test link
+    specgraph ls                       # List all specs with ticket counts
+    specgraph ls <spec>                # List tickets for a spec
+    specgraph ls --status=open         # Filter by status
+    specgraph show <spec>/<ticket>     # Show ticket details
+    specgraph summary                  # Overall summary
+    specgraph open                     # List all open tickets
+    specgraph close <spec>/<ticket>    # Close a ticket as implemented
+    specgraph close <t> -c path/code   # Close with code link
+    specgraph close <t> -t path/test   # Close with test link
 
 SPEC MANAGEMENT:
-    trk scaffold <spec>          # Create tickets from spec sections
-    trk scaffold --all           # Scaffold all specs in queue
-    trk status                   # Show status for all specs
-    trk status <spec>            # Show status for one spec
-    trk queue                    # Show spec queue vs complete
-    trk next                     # Show next spec to process
-    trk complete <spec>          # Move spec from queue to complete
+    specgraph scaffold <spec>          # Create tickets from spec sections
+    specgraph scaffold --all           # Scaffold all specs in queue
+    specgraph status                   # Show status for all specs
+    specgraph status <spec>            # Show status for one spec
+    specgraph queue                    # Show spec queue vs complete
+    specgraph next                     # Show next spec to process
+    specgraph complete <spec>          # Move spec from queue to complete
 
 GRAPH TRAVERSAL:
-    trk trace <path>             # Reverse lookup: what spec/ticket covers this code?
-    trk graph <spec>             # Show full graph: spec -> tickets -> code/tests
-    trk graph --reverse <path>   # What specs touch this directory?
-    trk related <spec>           # Show specs that link to/from this spec
+    specgraph trace <path>             # Reverse lookup: what spec/ticket covers this code?
+    specgraph graph <spec>             # Show full graph: spec -> tickets -> code/tests
+    specgraph graph --reverse <path>   # What specs touch this directory?
+    specgraph related <spec>           # Show specs that link to/from this spec
 
 USE CASE TRACKING:
-    trk uc ls                    # List all use cases with completion %
-    trk uc show <id>             # Show use case with requirement status
-    trk uc gaps <id>             # Show only missing requirements
-    trk uc new <name>            # Create a new use case from template
+    specgraph uc ls                    # List all use cases with completion %
+    specgraph uc show <id>             # Show use case with requirement status
+    specgraph uc gaps <id>             # Show only missing requirements
+    specgraph uc new <name>            # Create a new use case from template
 
 ROADMAP:
-    trk roadmap                  # All milestones with reqs + ticket status
-    trk roadmap <id>             # Detail view for one milestone
-    trk roadmap --deadlines      # External deadlines sorted by date
+    specgraph roadmap                  # All milestones with reqs + ticket status
+    specgraph roadmap <id>             # Detail view for one milestone
+    specgraph roadmap --deadlines      # External deadlines sorted by date
 
 FILTERING:
-    trk ls --milestone <id>      # Tickets assigned to a milestone
-    trk ls --service <name>      # Tickets touching a service
-    trk ls --domain <name>       # Tickets in a domain
-    trk ls --demand UC-XXX       # Tickets serving a use case (via demand: frontmatter)
+    specgraph ls --milestone <id>      # Tickets assigned to a milestone
+    specgraph ls --service <name>      # Tickets touching a service
+    specgraph ls --domain <name>       # Tickets in a domain
+    specgraph ls --demand UC-XXX       # Tickets serving a use case (via demand: frontmatter)
 
 CRM (Contact Management):
-    trk crm ls                   # List all contacts sorted by tier
-    trk crm ls --status warm     # Filter by status
-    trk crm ls --category investor  # Filter by category
-    trk crm ls --tier 1          # Filter by tier
-    trk crm show <name>          # Show full contact details
-    trk crm new <name>           # Create contact from template
-    trk crm follow-ups           # Show contacts with pending next_action
+    specgraph crm ls                   # List all contacts sorted by tier
+    specgraph crm ls --status warm     # Filter by status
+    specgraph crm ls --category investor  # Filter by category
+    specgraph crm ls --tier 1          # Filter by tier
+    specgraph crm show <name>          # Show full contact details
+    specgraph crm new <name>           # Create contact from template
+    specgraph crm follow-ups           # Show contacts with pending next_action
 
 BENCHMARKS:
-    trk bench ls                 # List all benchmarks with status
-    trk bench run                # Run all active benchmarks
-    trk bench run <id>           # Run a specific benchmark
-    trk bench run --milestone <id>  # Run benchmarks for a milestone
-    trk bench run --uc UC-XXX   # Run benchmarks for a use case
-    trk bench status             # Show latest pass/fail for all
-    trk bench compare <id>       # Detailed metrics vs. thresholds
+    specgraph bench ls                 # List all benchmarks with status
+    specgraph bench run                # Run all active benchmarks
+    specgraph bench run <id>           # Run a specific benchmark
+    specgraph bench run --milestone <id>  # Run benchmarks for a milestone
+    specgraph bench run --uc UC-XXX   # Run benchmarks for a use case
+    specgraph bench status             # Show latest pass/fail for all
+    specgraph bench compare <id>       # Detailed metrics vs. thresholds
 
 VALIDATION & AUDIT:
-    trk audit                    # Audit code coverage and orphans
-    trk audit --verbose          # Show all linked paths
-    trk orphans                  # List orphan directories by module
-    trk orphans --min-files 3    # Only show dirs with 3+ files
-    trk match                    # Suggest orphan -> ticket matches
-    trk match --script           # Output as copy-paste commands
-    trk validate                 # Validate all links resolve
-    trk gaps                     # Specs in queue without tickets
-    trk prune                    # Remove non-actionable tickets
-    trk prune --dry-run          # Preview what would be deleted
+    specgraph audit                    # Audit code coverage and orphans
+    specgraph audit --verbose          # Show all linked paths
+    specgraph orphans                  # List orphan directories by module
+    specgraph orphans --min-files 3    # Only show dirs with 3+ files
+    specgraph match                    # Suggest orphan -> ticket matches
+    specgraph match --script           # Output as copy-paste commands
+    specgraph validate                 # Validate all links resolve
+    specgraph gaps                     # Specs in queue without tickets
+    specgraph prune                    # Remove non-actionable tickets
+    specgraph prune --dry-run          # Preview what would be deleted
 
 AGENT ONBOARDING:
-    trk init                     # Print project overview for agents
+    specgraph init                     # Print project overview for agents
 
 Examples:
-    trk ls artifact-catalog
-    trk show artifact-catalog/security
-    trk scaffold WORKSPACE
-    trk scaffold --all
-    trk status workspace
-    trk complete workspace
+    specgraph ls artifact-catalog
+    specgraph show artifact-catalog/security
+    specgraph scaffold WORKSPACE
+    specgraph scaffold --all
+    specgraph status workspace
+    specgraph complete workspace
 """
 
 import argparse
@@ -105,9 +105,9 @@ from dataclasses import dataclass, field
 # Configuration
 # ---------------------------------------------------------------------------
 
-CONFIG_FILE = "trk.yaml"
+CONFIG_FILE = "specgraph.yaml"
 
-# Default config values (used when trk.yaml omits a key)
+# Default config values (used when specgraph.yaml omits a key)
 DEFAULT_CONFIG = {
     "tickets_dir": ".tickets",
     "specs_dir": "docs/spec",
@@ -125,7 +125,7 @@ DEFAULT_CONFIG = {
 
 
 def find_project_root() -> Optional[Path]:
-    """Walk up from cwd looking for trk.yaml."""
+    """Walk up from cwd looking for specgraph.yaml."""
     cwd = Path.cwd()
     for parent in [cwd] + list(cwd.parents):
         if (parent / CONFIG_FILE).exists():
@@ -183,7 +183,7 @@ def parse_config_yaml(path: Path) -> dict:
 
 
 def load_config(project_root: Path) -> dict:
-    """Load config from trk.yaml, falling back to defaults."""
+    """Load config from specgraph.yaml, falling back to defaults."""
     config_path = project_root / CONFIG_FILE
     if config_path.exists():
         raw = parse_config_yaml(config_path)
@@ -228,7 +228,7 @@ def load_validators(project_root: Path, config: dict) -> dict:
         if vpath.exists():
             try:
                 spec = importlib.util.spec_from_file_location(
-                    "trk_validators", str(vpath))
+                    "specgraph_validators", str(vpath))
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 validators = dict(getattr(mod, "VALIDATORS", {}))
@@ -1036,7 +1036,7 @@ def cmd_dashboard(args):
         top = almost[0]
         print(f"  - Close out {top['name']} ({top['open']} tickets left)")
     if done:
-        print(f"  - Run: trk complete <spec> for {len(done)} done specs")
+        print(f"  - Run: specgraph complete <spec> for {len(done)} done specs")
     if early:
         top_early = early[0]
         print(f"  - Triage {top_early['name']} ({top_early['open']} open tickets)")
@@ -1507,8 +1507,8 @@ def cmd_orphans(args):
     print()
     print("To link orphan code to specs:")
     print("  1. Add {#anchor} to spec section")
-    print("  2. Run: trk scaffold <spec>")
-    print("  3. Run: trk close <spec>/<ticket> -c <path>")
+    print("  2. Run: specgraph scaffold <spec>")
+    print("  3. Run: specgraph close <spec>/<ticket> -c <path>")
 
     return 0
 
@@ -1619,7 +1619,7 @@ def cmd_match(args):
         for orphan_path, file_count, ticket, score, reason in matched:
             print(f"  {orphan_path} ({file_count} files)")
             print(f"    -> {ticket['id']} ({reason})")
-            print(f"    trk close {ticket['id']} -c {orphan_path}")
+            print(f"    specgraph close {ticket['id']} -c {orphan_path}")
             print()
 
     if unmatched:
@@ -1644,11 +1644,11 @@ def cmd_match(args):
             print("# Consolidated by ticket:")
             for tid, paths in sorted(by_ticket.items()):
                 code_flags = " ".join(f"-c {p}" for p in paths)
-                print(f"trk close {tid} {code_flags}")
+                print(f"specgraph close {tid} {code_flags}")
         else:
             print("# Copy/paste to close matched tickets:")
             for orphan_path, file_count, ticket, score, reason in matched:
-                print(f"trk close {ticket['id']} -c {orphan_path}")
+                print(f"specgraph close {ticket['id']} -c {orphan_path}")
 
     return 0
 
@@ -1831,7 +1831,7 @@ def cmd_trace(args):
         print(f"No coverage found for: {query_path}")
         print()
         print("This path is not linked from any ticket.")
-        print("Use 'trk orphans' to see all unlinked code.")
+        print("Use 'specgraph orphans' to see all unlinked code.")
         return 1
 
     print(f"Coverage for: {query_path}")
@@ -2304,15 +2304,15 @@ def cmd_new(args):
     print(f"  1. Edit {readme}")
     print(f"  2. Define user stories (P1 = MVP)")
     print(f"  3. Break down tasks with IDs")
-    print(f"  4. Use 'trk ls {name}' to track progress")
+    print(f"  4. Use 'specgraph ls {name}' to track progress")
 
     return 0
 
 
 def cmd_queue(args):
     """Show the spec queue status."""
-    print("Note: queue/complete structure removed. Use 'trk specs' to list all specs.")
-    print("      Use 'trk coverage' to see which specs have impl tickets.")
+    print("Note: queue/complete structure removed. Use 'specgraph specs' to list all specs.")
+    print("      Use 'specgraph coverage' to see which specs have impl tickets.")
     return cmd_specs(args)
 
 
@@ -2333,9 +2333,9 @@ def cmd_next(args):
     print()
     print("To process:")
     print(f"  1. Add frontmatter + section anchors")
-    print(f"  2. Run: trk scaffold {next_spec.stem.lower()}")
+    print(f"  2. Run: specgraph scaffold {next_spec.stem.lower()}")
     print(f"  3. Close tickets as you implement")
-    print(f"  4. Run: trk complete {next_spec.stem.lower()}")
+    print(f"  4. Run: specgraph complete {next_spec.stem.lower()}")
 
     return 0
 
@@ -2752,7 +2752,7 @@ Describe the first phase of the user's workflow.
     print(f"  1. Edit {uc_file}")
     print(f"  2. Fill in persona, problem, workflow")
     print(f"  3. Uncomment/add requirements in requires: block")
-    print(f"  4. Run: trk uc show {uc_id}")
+    print(f"  4. Run: specgraph uc show {uc_id}")
 
     return 0
 
@@ -3020,7 +3020,7 @@ def cmd_bench(args):
     elif bench_cmd == "compare":
         return cmd_bench_compare(args)
     else:
-        print("Usage: trk bench {ls|run|status|compare}")
+        print("Usage: specgraph bench {ls|run|status|compare}")
         print()
         print("  ls       List all benchmarks with status")
         print("  run      Run benchmarks")
@@ -3100,7 +3100,7 @@ def cmd_bench_run(args):
         from benchmarks import runner
     except ImportError as e:
         print(f"Cannot import benchmark runner: {e}")
-        print("Run with: uv run python trk.py bench run")
+        print("Run with: uv run python specgraph bench run")
         return 1
 
     bench_id = getattr(args, 'bench_id', None)
@@ -3158,7 +3158,7 @@ def cmd_bench_status(args):
     results = _load_bench_results()
 
     if not results:
-        print("No benchmark results found. Run: trk bench run")
+        print("No benchmark results found. Run: specgraph bench run")
         return 1
 
     print(f"{'ID':<32} {'DATE':<12} {'TIME':<8} {'RESULT':<8} {'METRICS'}")
@@ -3194,14 +3194,14 @@ def cmd_bench_compare(args):
     """Show detailed metrics for one benchmark."""
     bench_id = getattr(args, 'bench_id', None)
     if not bench_id:
-        print("Usage: trk bench compare <bench-id>")
+        print("Usage: specgraph bench compare <bench-id>")
         return 1
 
     results = _load_bench_results()
     result = results.get(bench_id)
 
     if not result:
-        print(f"No results found for {bench_id}. Run: trk bench run {bench_id}")
+        print(f"No results found for {bench_id}. Run: specgraph bench run {bench_id}")
         return 1
 
     print(f"Benchmark: {result['id']}")
@@ -3590,11 +3590,11 @@ def cmd_init(args):
 
     # Commands
     print("Commands:")
-    print("  trk open                  # See all open tickets")
-    print("  trk ls <spec>             # Tickets for a spec")
-    print("  trk show <spec>/<ticket>  # Ticket details")
-    print("  trk dashboard             # Visual progress overview")
-    print("  trk help                  # Full command reference")
+    print("  specgraph open                  # See all open tickets")
+    print("  specgraph ls <spec>             # Tickets for a spec")
+    print("  specgraph show <spec>/<ticket>  # Ticket details")
+    print("  specgraph dashboard             # Visual progress overview")
+    print("  specgraph help                  # Full command reference")
 
     return 0
 
@@ -3606,7 +3606,7 @@ def cmd_init(args):
 def cmd_help(args):
     """Show detailed help with command groups."""
     help_text = """
-trk - Spec-driven traceability CLI
+specgraph - Spec-driven traceability CLI
 
 TICKET MANAGEMENT
   ls                  List all specs with ticket counts
@@ -3660,7 +3660,7 @@ ROADMAP
   roadmap <id>        Detail view for one milestone
   roadmap -d          External deadlines sorted by date
 
-FILTERING (on trk ls)
+FILTERING (on specgraph ls)
   ls --milestone <id> Tickets assigned to a milestone
   ls --service <name> Tickets touching a service
   ls --domain <name>  Tickets in a domain
@@ -3685,25 +3685,25 @@ AGENT ONBOARDING
   init                 Print project overview and reading order
 
 WORKFLOW: NEW SPEC
-  1. trk next                           # See next spec to process
-  2. trk scaffold <spec>                # Create tickets from spec
-  3. trk ls <spec> --status=open        # See what needs doing
-  4. trk close <spec>/<id> -c path      # Close tickets with code links
-  5. trk audit                           # Check coverage
-  6. trk complete <spec>                 # Move spec to complete/
+  1. specgraph next                           # See next spec to process
+  2. specgraph scaffold <spec>                # Create tickets from spec
+  3. specgraph ls <spec> --status=open        # See what needs doing
+  4. specgraph close <spec>/<id> -c path      # Close tickets with code links
+  5. specgraph audit                           # Check coverage
+  6. specgraph complete <spec>                 # Move spec to complete/
 
 WORKFLOW: LINK ORPHAN CODE
-  1. trk orphans --min-files 3          # See what's orphaned
-  2. trk match                          # Get suggested matches
-  3. trk match -s -g                    # Get copy-paste commands
-  4. trk close <spec>/<id> -c path      # Run the commands you agree with
-  5. trk audit                          # Verify improvement
+  1. specgraph orphans --min-files 3          # See what's orphaned
+  2. specgraph match                          # Get suggested matches
+  3. specgraph match -s -g                    # Get copy-paste commands
+  4. specgraph close <spec>/<id> -c path      # Run the commands you agree with
+  5. specgraph audit                          # Verify improvement
 
 WORKFLOW: INVESTIGATE CODE
-  1. trk trace path/to/file.py          # What ticket covers this file?
-  2. trk graph layer-management         # See full spec graph
-  3. trk graph -r src/                  # What specs touch src/?
-  4. trk related layer-management       # What specs link to this one?
+  1. specgraph trace path/to/file.py          # What ticket covers this file?
+  2. specgraph graph layer-management         # See full spec graph
+  3. specgraph graph -r src/                  # What specs touch src/?
+  4. specgraph related layer-management       # What specs link to this one?
 """
     print(help_text)
     return 0
@@ -3904,7 +3904,7 @@ def main():
 
     if project_root is None:
         print(f"Error: no {CONFIG_FILE} found (searched from cwd to /)")
-        print(f"Create one with: trk help")
+        print(f"Create one with: specgraph help")
         return 1
 
     config = load_config(project_root)
