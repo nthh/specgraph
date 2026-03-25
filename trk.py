@@ -418,7 +418,9 @@ def resolve_link(link: str) -> Optional[Path]:
         return SPEC_QUEUE / f"{link_id.upper()}.md"
     elif link_type == 'code':
         path = link_id.lstrip('/')
-        return PROJECT_ROOT / path
+        # Code links may include the project dir name as prefix
+        # (e.g., "myproject/src/foo.py"), so resolve from parent
+        return PROJECT_ROOT.parent / path
     elif link_type == 'adr':
         if DECISIONS_DIR.exists():
             matches = list(DECISIONS_DIR.glob(f"{link_id}-*.md"))
