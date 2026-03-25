@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trk"
+version = "0.1.0"
+description = "Spec-driven traceability CLI for software projects"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "Nathan Henrie" },
+]
+keywords = ["traceability", "specs", "tickets", "project-management", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.scripts]
+trk = "trk:main"
+
+[project.urls]
+Repository = "https://github.com/nthh/trk"

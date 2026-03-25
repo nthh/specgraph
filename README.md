@@ -23,6 +23,19 @@ trk answers questions like:
 - "What code is orphaned — not linked from any ticket?" (`trk orphans`)
 - "How complete is this spec?" (`trk completeness my-spec`)
 
+## Install
+
+```bash
+# With uv (recommended):
+uv tool install trk
+
+# With pipx:
+pipx install trk
+
+# Or just clone and run directly:
+python3 path/to/trk/src/trk/__init__.py ls
+```
+
 ## Quick Start
 
 ### 1. Add `trk.yaml` to your project root
@@ -51,11 +64,9 @@ your-project/
 ### 3. Run trk
 
 ```bash
-# From your project directory (or any subdirectory):
-python3 /path/to/trk/trk.py ls
-
-# Or create an alias:
-alias trk="python3 /path/to/trk/trk.py"
+trk init    # Project overview (great for agent onboarding)
+trk ls      # List all specs with ticket counts
+trk open    # See all open tickets
 ```
 
 ## Configuration
