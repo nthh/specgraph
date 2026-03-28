@@ -1,0 +1,12 @@
+tickets_dir: .tickets
+specs_dir: docs/spec
+decisions_dir: docs/decisions
+use_cases_dir: docs/use_cases
+contacts_dir: docs/contacts
+benchmarks_dir: benchmarks
+roadmap_file: docs/ROADMAP.md
+template: .tickets/TEMPLATE.md
+code_dirs:
+  - src:*.py
+test_dirs:
+  - tests:*.py

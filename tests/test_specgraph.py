@@ -981,3 +981,258 @@ class TestPrune(TestCase):
         code, out, _ = run_cmd(self.tmp, ["prune"])
         self.assertEqual(code, 0)
         self.assertFalse((d / "overview.md").exists())
+
+
+# ---------------------------------------------------------------------------
+# Drift Detection
+# ---------------------------------------------------------------------------
+
+def _git_init(tmp: Path):
+    """Initialize a git repo and make an initial commit."""
+    import subprocess
+    subprocess.run(["git", "init"], cwd=str(tmp), capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=str(tmp), capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=str(tmp), capture_output=True, check=True)
+
+
+def _git_add_commit(tmp: Path, msg: str, files: list[str] | None = None):
+    """Stage files and commit."""
+    import subprocess
+    if files:
+        for f in files:
+            subprocess.run(["git", "add", f], cwd=str(tmp), capture_output=True, check=True)
+    else:
+        subprocess.run(["git", "add", "-A"], cwd=str(tmp), capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", msg, "--allow-empty-message"],
+                   cwd=str(tmp), capture_output=True, check=True)
+
+
+class TestDrift(TestCase):
+    def setUp(self):
+        self.tmp = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "specgraph_test_drift"
+        if self.tmp.exists():
+            shutil.rmtree(self.tmp)
+        self.tmp.mkdir(parents=True)
+        make_project(self.tmp)
+        # Overwrite config with code_dirs (extra_config + dedent interaction is fragile)
+        write_file(self.tmp / "specgraph.yaml", """\
+            tickets_dir: .tickets
+            specs_dir: docs/spec
+            decisions_dir: docs/decisions
+            use_cases_dir: docs/use_cases
+            contacts_dir: docs/contacts
+            benchmarks_dir: benchmarks
+            roadmap_file: docs/ROADMAP.md
+            template: .tickets/TEMPLATE.md
+            code_dirs:
+              - src:*.py
+        """)
+        _git_init(self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_drift_no_specs(self):
+        """No spec files → early exit."""
+        # Remove the specs dir
+        shutil.rmtree(self.tmp / "docs" / "spec")
+        _git_add_commit(self.tmp, "init")
+        code, out, _ = run_cmd(self.tmp, ["drift"])
+        self.assertEqual(code, 1)
+        self.assertIn("No specs", out)
+
+    def test_drift_no_code_dirs(self):
+        """No code_dirs configured → tells user to add them."""
+        # Rewrite config without code_dirs
+        write_file(self.tmp / "specgraph.yaml", """\
+            tickets_dir: .tickets
+            specs_dir: docs/spec
+            decisions_dir: docs/decisions
+            use_cases_dir: docs/use_cases
+            contacts_dir: docs/contacts
+            benchmarks_dir: benchmarks
+            roadmap_file: docs/ROADMAP.md
+            template: .tickets/TEMPLATE.md
+        """)
+        write_file(self.tmp / "docs" / "spec" / "AUTH.md", """\
+            ---
+            spec: auth
+            ---
+
+            # Auth
+        """)
+        _git_add_commit(self.tmp, "init")
+        code, out, _ = run_cmd(self.tmp, ["drift"])
+        self.assertEqual(code, 1)
+        self.assertIn("No code_dirs", out)
+
+    def test_drift_no_drift(self):
+        """Spec updated after code → no drift."""
+        import subprocess, time
+
+        (self.tmp / "src").mkdir(parents=True, exist_ok=True)
+        write_file(self.tmp / "src" / "auth.py", "# auth code\n")
+        # Ticket linking code to spec
+        d = self.tmp / ".tickets" / "impl" / "auth"
+        d.mkdir(parents=True, exist_ok=True)
+        write_file(d / "README.md", "---\nid: auth\nstatus: open\n---\n# Auth\n")
+        write_file(d / "login.md", """\
+            ---
+            id: auth/login
+            status: closed
+            code:
+              - "src/auth.py"
+            links:
+              - "docs/spec/AUTH.md"
+            ---
+
+            # Login
+        """)
+        _git_add_commit(self.tmp, "init: code and tickets")
+
+        # Code change — use explicit past timestamp
+        t_code = "2020-01-01T00:00:00"
+        write_file(self.tmp / "src" / "auth.py", "# auth code v2\n")
+        subprocess.run(["git", "add", "src/auth.py"], cwd=str(self.tmp), capture_output=True, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "code change",
+             "--date", t_code],
+            cwd=str(self.tmp), capture_output=True, check=True,
+            env={**os.environ, "GIT_COMMITTER_DATE": t_code},
+        )
+
+        # Spec updated AFTER code — use later timestamp
+        t_spec = "2020-01-02T00:00:00"
+        write_file(self.tmp / "docs" / "spec" / "AUTH.md", """\
+            ---
+            spec: auth
+            ---
+
+            # Auth (updated)
+        """)
+        subprocess.run(["git", "add", "docs/spec/AUTH.md"], cwd=str(self.tmp), capture_output=True, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "update spec",
+             "--date", t_spec],
+            cwd=str(self.tmp), capture_output=True, check=True,
+            env={**os.environ, "GIT_COMMITTER_DATE": t_spec},
+        )
+
+        code, out, _ = run_cmd(self.tmp, ["drift"])
+        self.assertEqual(code, 0)
+        self.assertIn("NO DRIFT", out)
+
+    def test_drift_detected(self):
+        """Code changed after spec → drift detected."""
+        import subprocess
+
+        (self.tmp / "src").mkdir(parents=True, exist_ok=True)
+        write_file(self.tmp / "docs" / "spec" / "AUTH.md", """\
+            ---
+            spec: auth
+            ---
+
+            # Auth
+        """)
+        d = self.tmp / ".tickets" / "impl" / "auth"
+        d.mkdir(parents=True, exist_ok=True)
+        write_file(d / "README.md", "---\nid: auth\nstatus: open\n---\n# Auth\n")
+        write_file(d / "login.md", """\
+            ---
+            id: auth/login
+            status: closed
+            code:
+              - "src/auth.py"
+            links:
+              - "docs/spec/AUTH.md"
+            ---
+
+            # Login
+        """)
+        write_file(self.tmp / "src" / "auth.py", "# v1\n")
+        _git_add_commit(self.tmp, "init")
+
+        # Make code-only commits after the spec
+        for i in range(4):
+            write_file(self.tmp / "src" / "auth.py", f"# v{i+2}\n")
+            subprocess.run(
+                ["git", "add", "src/auth.py"],
+                cwd=str(self.tmp), capture_output=True, check=True,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", f"code change {i+1}"],
+                cwd=str(self.tmp), capture_output=True, check=True,
+            )
+
+        code, out, _ = run_cmd(self.tmp, ["drift"])
+        self.assertIn("DRIFT DETECTED", out)
+        self.assertIn("src", out)
+
+    def test_drift_high_severity(self):
+        """10+ code commits after spec → HIGH severity, exit 1."""
+        import subprocess
+
+        (self.tmp / "src").mkdir(parents=True, exist_ok=True)
+        write_file(self.tmp / "docs" / "spec" / "AUTH.md", """\
+            ---
+            spec: auth
+            ---
+
+            # Auth
+        """)
+        d = self.tmp / ".tickets" / "impl" / "auth"
+        d.mkdir(parents=True, exist_ok=True)
+        write_file(d / "README.md", "---\nid: auth\nstatus: open\n---\n# Auth\n")
+        write_file(d / "login.md", """\
+            ---
+            id: auth/login
+            status: closed
+            code:
+              - "src/auth.py"
+            links:
+              - "docs/spec/AUTH.md"
+            ---
+
+            # Login
+        """)
+        write_file(self.tmp / "src" / "auth.py", "# v1\n")
+        _git_add_commit(self.tmp, "init")
+
+        for i in range(12):
+            write_file(self.tmp / "src" / "auth.py", f"# v{i+2}\n")
+            subprocess.run(
+                ["git", "add", "src/auth.py"],
+                cwd=str(self.tmp), capture_output=True, check=True,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", f"code change {i+1}"],
+                cwd=str(self.tmp), capture_output=True, check=True,
+            )
+
+        code, out, _ = run_cmd(self.tmp, ["drift"])
+        # 12 code commits + inclusive --since counts initial = 13 → HIGH
+        self.assertEqual(code, 1)
+        self.assertIn("DRIFT DETECTED", out)
+        self.assertIn("HIGH", out)
+
+    def test_drift_verbose(self):
+        """--verbose flag shows remediation hints."""
+        import subprocess
+
+        (self.tmp / "src").mkdir(parents=True, exist_ok=True)
+        write_file(self.tmp / "docs" / "spec" / "AUTH.md", "---\nspec: auth\n---\n# Auth\n")
+        d = self.tmp / ".tickets" / "impl" / "auth"
+        d.mkdir(parents=True, exist_ok=True)
+        write_file(d / "README.md", "---\nid: auth\nstatus: open\n---\n# Auth\n")
+        write_file(d / "login.md", "---\nid: auth/login\nstatus: closed\ncode:\n  - \"src/auth.py\"\nlinks:\n  - \"docs/spec/AUTH.md\"\n---\n# Login\n")
+        write_file(self.tmp / "src" / "auth.py", "# v1\n")
+        _git_add_commit(self.tmp, "init")
+
+        for i in range(3):
+            write_file(self.tmp / "src" / "auth.py", f"# v{i+2}\n")
+            subprocess.run(["git", "add", "src/auth.py"], cwd=str(self.tmp), capture_output=True, check=True)
+            subprocess.run(["git", "commit", "-m", f"change {i+1}"], cwd=str(self.tmp), capture_output=True, check=True)
+
+        code, out, _ = run_cmd(self.tmp, ["drift", "--verbose"])
+        self.assertIn("DRIFT DETECTED", out)
+        self.assertIn("Review spec", out)
