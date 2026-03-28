@@ -3600,6 +3600,185 @@ def cmd_init(args):
 
 
 # ---------------------------------------------------------------------------
+# Drift Detection
+# ---------------------------------------------------------------------------
+
+def cmd_drift(args):
+    """Detect spec drift: code changed but corresponding spec hasn't been updated."""
+    import subprocess
+
+    if not SPEC_DIR.exists():
+        print(f"No specs found in {SPEC_DIR}")
+        return 1
+
+    if not CODE_DIRS:
+        print("No code_dirs configured in specgraph.yaml — cannot detect drift.")
+        print("Add code_dirs entries to map code directories to scan.")
+        return 1
+
+    # Build a mapping: spec file -> code directories that reference it
+    # We use the ticket links to connect specs to code dirs
+    spec_to_code = {}
+    spec_files = list(iter_spec_files())
+
+    for spec_file in spec_files:
+        spec_name = spec_file.stem.upper()
+        spec_to_code[spec_file] = {
+            "name": spec_name,
+            "code_dirs": [],
+        }
+
+    # Also map code_dirs from config directly — each code dir maps to specs
+    # that reference files in that dir via ticket links
+    specs = list_specs()
+    for spec in specs:
+        for ticket in spec["tickets"]:
+            links = ticket["frontmatter"].get("links", [])
+            code_paths = ticket["frontmatter"].get("code", [])
+            if isinstance(code_paths, str):
+                code_paths = [code_paths]
+            if not isinstance(code_paths, list):
+                code_paths = []
+
+            # Find which spec files this ticket references
+            linked_specs = []
+            if isinstance(links, list):
+                for link in links:
+                    if isinstance(link, str) and "docs/spec/" in link:
+                        match = re.search(r'docs/spec/([A-Z_]+)\.md', link)
+                        if match:
+                            spec_name = match.group(1)
+                            for sf in spec_files:
+                                if sf.stem.upper() == spec_name:
+                                    linked_specs.append(sf)
+
+            # Map code paths to their specs
+            for code_path in code_paths:
+                for sf in linked_specs:
+                    if sf in spec_to_code:
+                        if code_path not in spec_to_code[sf]["code_dirs"]:
+                            spec_to_code[sf]["code_dirs"].append(code_path)
+
+    # For specs without explicit code links, use code_dirs heuristic:
+    # map spec names to likely code directories
+    SPEC_TO_DIR_HINTS = {
+        "OPERATIONS": ["folia/ops", "registry"],
+        "LAYERS": ["folia/layers", "folia/core"],
+        "DOMAINS": ["folia/domains"],
+        "VIEWS": ["app/components", "app/src"],
+        "WORKSPACE": ["folia/workspace", "app"],
+        "DEPLOYMENT": ["cloud/deploy"],
+        "MCP_SERVER": ["mcp"],
+        "CLIENT_COMPUTE": ["packages/compute", "packages/compute-wasm"],
+        "AGENT": ["mcp"],
+        "AUTH": ["cloud/orchestrator/src/auth", "folia/auth"],
+    }
+
+    for sf, info in spec_to_code.items():
+        if not info["code_dirs"]:
+            hints = SPEC_TO_DIR_HINTS.get(sf.stem.upper(), [])
+            for hint in hints:
+                hint_path = PROJECT_ROOT / hint
+                if hint_path.exists():
+                    info["code_dirs"].append(hint)
+
+    # Now check drift: for each spec with code dirs, compare timestamps
+    results = {"high": [], "medium": [], "low": [], "ok": []}
+
+    for spec_file, info in spec_to_code.items():
+        if not info["code_dirs"]:
+            continue
+
+        # Get spec last modification from git
+        try:
+            spec_rel = spec_file.relative_to(PROJECT_ROOT)
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%ct", "--", str(spec_rel)],
+                capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                continue
+            spec_timestamp = int(result.stdout.strip())
+        except (ValueError, subprocess.SubprocessError):
+            continue
+
+        # Count code commits since spec was last updated
+        total_commits = 0
+        active_dirs = []
+        for code_dir in info["code_dirs"]:
+            code_path = PROJECT_ROOT / code_dir
+            if not code_path.exists():
+                continue
+            try:
+                result = subprocess.run(
+                    ["git", "log", f"--since=@{spec_timestamp}",
+                     "--oneline", "--", str(code_dir)],
+                    capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+                )
+                if result.returncode == 0:
+                    commits = [l for l in result.stdout.strip().split("\n") if l.strip()]
+                    if commits:
+                        total_commits += len(commits)
+                        active_dirs.append((code_dir, len(commits)))
+            except subprocess.SubprocessError:
+                continue
+
+        if total_commits == 0:
+            results["ok"].append((info["name"], spec_file, 0, []))
+        elif total_commits >= 10:
+            results["high"].append((info["name"], spec_file, total_commits, active_dirs))
+        elif total_commits >= 3:
+            results["medium"].append((info["name"], spec_file, total_commits, active_dirs))
+        else:
+            results["low"].append((info["name"], spec_file, total_commits, active_dirs))
+
+    # Print results
+    has_drift = results["high"] or results["medium"] or results["low"]
+
+    if has_drift:
+        print("DRIFT DETECTED")
+        print("=" * 60)
+    else:
+        print("NO DRIFT DETECTED")
+        print("=" * 60)
+        print("All specs with mapped code directories are up to date.")
+        return 0
+
+    for severity, items in [("HIGH", results["high"]), ("MEDIUM", results["medium"]), ("LOW", results["low"])]:
+        if not items:
+            continue
+        print()
+        for name, spec_file, count, dirs in sorted(items, key=lambda x: -x[2]):
+            spec_rel = spec_file.relative_to(PROJECT_ROOT)
+            # Aggregate file-level paths to directory level
+            dir_commits = {}
+            for d, c in dirs:
+                # Get parent directory for file paths
+                p = Path(d)
+                if p.suffix:  # has file extension — aggregate to parent
+                    key = str(p.parent) if str(p.parent) != "." else None
+                else:
+                    key = str(p) if str(p) != "." else None
+                if key:
+                    dir_commits[key] = dir_commits.get(key, 0) + c
+            print(f"  {severity}: {spec_rel}")
+            for d, c in sorted(dir_commits.items(), key=lambda x: -x[1])[:5]:
+                print(f"    {d}/ — {c} commit(s) since spec last updated")
+            remaining = len(dir_commits) - 5
+            if remaining > 0:
+                print(f"    ... and {remaining} more directories")
+            if args.verbose:
+                print(f"    Action: Review spec against recent changes")
+            print()
+
+    ok_count = len(results["ok"])
+    drift_count = len(results["high"]) + len(results["medium"]) + len(results["low"])
+    print(f"Summary: {drift_count} spec(s) with drift, {ok_count} up to date")
+
+    return 1 if results["high"] else 0
+
+
+# ---------------------------------------------------------------------------
 # Help
 # ---------------------------------------------------------------------------
 
@@ -3807,6 +3986,10 @@ def main():
     complete_parser = subparsers.add_parser("complete", help="Move spec from queue to complete")
     complete_parser.add_argument("spec", help="Spec name to mark complete")
 
+    # drift command
+    drift_parser = subparsers.add_parser("drift", help="Detect spec drift (code changed, spec stale)")
+    drift_parser.add_argument("--verbose", "-v", action="store_true", help="Show remediation hints")
+
     # help command
     subparsers.add_parser("help", help="Show detailed help with examples")
 
@@ -3931,6 +4114,7 @@ def main():
         "queue": cmd_queue,
         "next": cmd_next,
         "complete": cmd_complete,
+        "drift": cmd_drift,
         "help": cmd_help,
         "trace": cmd_trace,
         "graph": cmd_graph,
