@@ -26,6 +26,9 @@ classifiers = [
 [project.scripts]
 specgraph = "specgraph:main"
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [tool.hatch.version]
 source = "vcs"
 
