@@ -31,6 +31,7 @@ test = ["pytest"]
 
 [tool.hatch.version]
 source = "vcs"
+raw-options.local_scheme = "no-local-version"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/specgraph/_version.py"
